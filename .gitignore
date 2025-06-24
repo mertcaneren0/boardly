@@ -42,3 +42,5 @@ next-env.d.ts
 
 # development notes (private)
 DEVELOPMENT_NOTES.md
+
+/src/generated/prisma

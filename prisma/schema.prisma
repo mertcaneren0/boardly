@@ -1,0 +1,385 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Authentication Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  username      String?   @unique
+  bio           String?
+  website       String?
+  location      String?
+  
+  // Profile settings
+  timezone      String    @default("UTC")
+  dateFormat    String    @default("DD/MM/YYYY")
+  currency      String    @default("TRY")
+  
+  // UI preferences
+  theme         String    @default("system") // "light", "dark", "system"
+  language      String    @default("tr")
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  workspaces    WorkspaceMember[]
+  projects      Project[]
+  assignedTasks Task[]    @relation("TaskAssignee")
+  createdTasks  Task[]    @relation("TaskCreator")
+  payments      Payment[]
+  comments      Comment[]
+  sentMessages  Message[] @relation("MessageSender")
+  chatMembers   ChatMember[]
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Workspace & Collaboration Models
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  image       String?
+  
+  // Settings
+  isPublic    Boolean  @default(false)
+  settings    Json     @default("{}")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  members     WorkspaceMember[]
+  projects    Project[]
+  chats       Chat[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        Role     @default(MEMBER)
+  permissions Json     @default("{}")
+  joinedAt    DateTime @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@map("workspace_members")
+}
+
+// Project Management Models
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  image       String?
+  
+  // Project details
+  status      ProjectStatus @default(PLANNING)
+  priority    Priority      @default(MEDIUM)
+  startDate   DateTime?
+  endDate     DateTime?
+  budget      Float?
+  
+  // Client information
+  clientName  String?
+  clientEmail String?
+  clientPhone String?
+  
+  // Settings
+  isPublic    Boolean       @default(false)
+  settings    Json          @default("{}")
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  ownerId     String
+  workspaceId String?
+  
+  owner       User          @relation(fields: [ownerId], references: [id])
+  workspace   Workspace?    @relation(fields: [workspaceId], references: [id])
+  tasks       Task[]
+  payments    Payment[]
+  files       ProjectFile[]
+  chats       Chat[]
+
+  @@unique([ownerId, slug])
+  @@map("projects")
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  
+  // Task details
+  status      TaskStatus @default(TODO)
+  priority    Priority   @default(MEDIUM)
+  dueDate     DateTime?
+  completedAt DateTime?
+  estimatedHours Float?
+  actualHours    Float?
+  
+  // Task organization
+  tags        String[]
+  
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  projectId   String
+  assigneeId  String?
+  creatorId   String
+  
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee    User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator     User       @relation("TaskCreator", fields: [creatorId], references: [id])
+  comments    Comment[]
+
+  @@map("tasks")
+}
+
+// Financial Models
+model Payment {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  amount      Float
+  currency    String        @default("TRY")
+  
+  // Payment details
+  type        PaymentType   @default(INCOMING)
+  status      PaymentStatus @default(PENDING)
+  method      String?       // "bank_transfer", "credit_card", "cash", etc.
+  
+  // Dates
+  invoiceDate DateTime?
+  dueDate     DateTime?
+  paidDate    DateTime?
+  
+  // Invoice details
+  invoiceNumber String?
+  notes         String?
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  projectId   String
+  userId      String
+  
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id])
+
+  @@map("payments")
+}
+
+// Communication Models
+model Chat {
+  id          String   @id @default(cuid())
+  name        String?
+  type        ChatType @default(PROJECT)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  workspaceId String?
+  projectId   String?
+  
+  workspace   Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  members     ChatMember[]
+  messages    Message[]
+
+  @@map("chats")
+}
+
+model ChatMember {
+  id       String   @id @default(cuid())
+  userId   String
+  chatId   String
+  joinedAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat     Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chatId])
+  @@map("chat_members")
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  content   String
+  type      MessageType @default(TEXT)
+  files     String[]    // JSON array of file URLs
+  
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relations
+  chatId    String
+  senderId  String
+  
+  chat      Chat        @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender    User        @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@map("messages")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  taskId    String
+  authorId  String
+  
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@map("comments")
+}
+
+// File Management
+model ProjectFile {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  size      Int
+  mimeType  String
+  
+  createdAt DateTime @default(now())
+  
+  // Relations
+  projectId String
+  uploaderId String
+  
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_files")
+}
+
+// Enums
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum PaymentType {
+  INCOMING
+  OUTGOING
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum ChatType {
+  WORKSPACE
+  PROJECT
+  DIRECT
+}
+
+enum MessageType {
+  TEXT
+  FILE
+  IMAGE
+  SYSTEM
+}
