@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -9,8 +10,12 @@ export default function Home() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-primary">Boardly</h1>
           <div className="flex gap-2">
-            <Button variant="ghost">Giriş Yap</Button>
-            <Button>Üye Ol</Button>
+            <Link href="/auth/signin">
+              <Button variant="ghost">Giriş Yap</Button>
+            </Link>
+            <Link href="/auth/signin">
+              <Button>Üye Ol</Button>
+            </Link>
           </div>
         </div>
       </header>
@@ -24,9 +29,11 @@ export default function Home() {
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Freelance projelerinden işbirliği platformuna. Görevlerini, ödemelerini ve ekip çalışmanı tek yerden yönet.
           </p>
-          <Button size="lg" className="text-lg px-8 py-3">
-            Hemen Başla
-          </Button>
+          <Link href="/dashboard">
+            <Button size="lg" className="text-lg px-8 py-3">
+              Hemen Başla
+            </Button>
+          </Link>
         </div>
 
         {/* Features */}
