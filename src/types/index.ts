@@ -10,6 +10,7 @@ export type {
   Message,
   Comment,
   ProjectFile,
+  Note,
   Role,
   ProjectStatus,
   TaskStatus,
@@ -18,6 +19,7 @@ export type {
   PaymentStatus,
   ChatType,
   MessageType,
+  NoteCategory,
 } from '../generated/prisma/index'
 
 // Custom types for the application
@@ -52,6 +54,23 @@ export interface CreatePaymentData {
   dueDate?: Date
   invoiceDate?: Date
   method?: string
+}
+
+export interface CreateNoteData {
+  title: string
+  content: string
+  category?: 'GENERAL' | 'MEETING' | 'IDEA' | 'TODO' | 'RESEARCH' | 'CLIENT' | 'TECHNICAL' | 'FINANCIAL'
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+  tags?: string[]
+  projectId?: string
+  workspaceId?: string
+  contentType?: string
+}
+
+export interface UpdateNoteData extends Partial<CreateNoteData> {
+  id: string
+  isPinned?: boolean
+  isArchived?: boolean
 }
 
 // Dashboard types

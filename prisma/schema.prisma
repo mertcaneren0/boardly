@@ -79,6 +79,7 @@ model User {
   comments      Comment[]
   sentMessages  Message[] @relation("MessageSender")
   chatMembers   ChatMember[]
+  notes         Note[]
 
   @@map("users")
 }
@@ -111,6 +112,7 @@ model Workspace {
   members     WorkspaceMember[]
   projects    Project[]
   chats       Chat[]
+  notes       Note[]
 
   @@map("workspaces")
 }
@@ -167,6 +169,7 @@ model Project {
   payments    Payment[]
   files       ProjectFile[]
   chats       Chat[]
+  notes       Note[]
 
   @@unique([ownerId, slug])
   @@map("projects")
@@ -328,6 +331,37 @@ model ProjectFile {
   @@map("project_files")
 }
 
+// Notes Management
+model Note {
+  id          String     @id @default(cuid())
+  title       String
+  content     String
+  
+  // Note details
+  category    NoteCategory @default(GENERAL)
+  priority    Priority     @default(MEDIUM)
+  tags        String[]
+  isArchived  Boolean      @default(false)
+  isPinned    Boolean      @default(false)
+  
+  // Rich text metadata
+  contentType String       @default("markdown") // "markdown", "text", "html"
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  authorId    String
+  projectId   String?      // null = dashboard note, not null = project note
+  workspaceId String?      // workspace-wide notes
+  
+  author      User         @relation(fields: [authorId], references: [id])
+  project     Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace   Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("notes")
+}
+
 // Enums
 enum Role {
   OWNER
@@ -382,4 +416,15 @@ enum MessageType {
   FILE
   IMAGE
   SYSTEM
+}
+
+enum NoteCategory {
+  GENERAL
+  MEETING
+  IDEA
+  TODO
+  RESEARCH
+  CLIENT
+  TECHNICAL
+  FINANCIAL
 }
