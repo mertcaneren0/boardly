@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from '@/lib/auth/server-session'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -13,37 +12,37 @@ const updateNoteSchema = z.object({
   isArchived: z.boolean().optional(),
 })
 
-interface RouteParams {
-  params: {
-    id: string
-  }
+// Get demo user ID from database
+async function getDemoUserId() {
+  const demoUser = await prisma.user.findUnique({
+    where: { email: 'demo@boardly.app' }
+  })
+  return demoUser?.id || null
 }
 
 // GET /api/notes/[id] - Get single note
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const session = await getServerSession()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { id } = params
 
-    const note = await prisma.note.findFirst({
-      where: {
-        id: params.id,
-        authorId: session.user.id,
-      },
+    const note = await prisma.note.findUnique({
+      where: { id },
       include: {
         author: {
           select: {
             name: true,
             image: true,
-          },
+          }
         },
         project: {
           select: {
+            id: true,
             name: true,
             slug: true,
-          },
+          }
         },
       },
     })
@@ -66,19 +65,26 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 // PUT /api/notes/[id] - Update note
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const session = await getServerSession()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { id } = params
+    const body = await request.json()
+    const validatedData = updateNoteSchema.parse(body)
+
+    // Check if note exists and get demo user
+    const demoUserId = await getDemoUserId()
+    if (!demoUserId) {
+      return NextResponse.json(
+        { error: 'Demo user not found' },
+        { status: 404 }
+      )
     }
 
-    // Verify note exists and user owns it
-    const existingNote = await prisma.note.findFirst({
-      where: {
-        id: params.id,
-        authorId: session.user.id,
-      },
+    const existingNote = await prisma.note.findUnique({
+      where: { id },
     })
 
     if (!existingNote) {
@@ -88,24 +94,30 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const body = await request.json()
-    const validatedData = updateNoteSchema.parse(body)
+    // Check if user owns the note
+    if (existingNote.authorId !== demoUserId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403 }
+      )
+    }
 
     const updatedNote = await prisma.note.update({
-      where: { id: params.id },
+      where: { id },
       data: validatedData,
       include: {
         author: {
           select: {
             name: true,
             image: true,
-          },
+          }
         },
         project: {
           select: {
+            id: true,
             name: true,
             slug: true,
-          },
+          }
         },
       },
     })
@@ -128,19 +140,24 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 // DELETE /api/notes/[id] - Delete note
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const session = await getServerSession()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { id } = params
+
+    // Get demo user
+    const demoUserId = await getDemoUserId()
+    if (!demoUserId) {
+      return NextResponse.json(
+        { error: 'Demo user not found' },
+        { status: 404 }
+      )
     }
 
-    // Verify note exists and user owns it
-    const existingNote = await prisma.note.findFirst({
-      where: {
-        id: params.id,
-        authorId: session.user.id,
-      },
+    const existingNote = await prisma.note.findUnique({
+      where: { id },
     })
 
     if (!existingNote) {
@@ -150,11 +167,19 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Check if user owns the note
+    if (existingNote.authorId !== demoUserId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403 }
+      )
+    }
+
     await prisma.note.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
-    return NextResponse.json({ message: 'Note deleted successfully' })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting note:', error)
     return NextResponse.json(

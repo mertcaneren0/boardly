@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from '@/lib/auth/server-session'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -13,14 +12,17 @@ const createNoteSchema = z.object({
   workspaceId: z.string().optional(),
 })
 
+// Get demo user ID from database
+async function getDemoUserId() {
+  const demoUser = await prisma.user.findUnique({
+    where: { email: 'demo@boardly.app' }
+  })
+  return demoUser?.id || null
+}
+
 // GET /api/notes - List notes
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const projectId = searchParams.get('projectId')
     const workspaceId = searchParams.get('workspaceId')
@@ -30,8 +32,16 @@ export async function GET(request: NextRequest) {
     const pinned = searchParams.get('pinned') === 'true'
     const search = searchParams.get('search')
 
+    const demoUserId = await getDemoUserId()
+    if (!demoUserId) {
+      return NextResponse.json(
+        { error: 'Demo user not found' },
+        { status: 404 }
+      )
+    }
+
     const whereClause: any = {
-      authorId: session.user.id,
+      authorId: demoUserId,
       isArchived: archived,
     }
 
@@ -72,18 +82,19 @@ export async function GET(request: NextRequest) {
           select: {
             name: true,
             image: true,
-          },
+          }
         },
         project: {
           select: {
+            id: true,
             name: true,
             slug: true,
-          },
+          }
         },
       },
       orderBy: [
         { isPinned: 'desc' },
-        { createdAt: 'desc' },
+        { updatedAt: 'desc' },
       ],
     })
 
@@ -100,70 +111,40 @@ export async function GET(request: NextRequest) {
 // POST /api/notes - Create note
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
     const validatedData = createNoteSchema.parse(body)
 
-    // If projectId is provided, verify user has access to the project
-    if (validatedData.projectId) {
-      const project = await prisma.project.findFirst({
-        where: {
-          id: validatedData.projectId,
-          ownerId: session.user.id,
-        },
-      })
-
-      if (!project) {
-        return NextResponse.json(
-          { error: 'Project not found or access denied' },
-          { status: 404 }
-        )
-      }
+    const demoUserId = await getDemoUserId()
+    if (!demoUserId) {
+      return NextResponse.json(
+        { error: 'Demo user not found' },
+        { status: 404 }
+      )
     }
 
-    // If workspaceId is provided, verify user is a member
-    if (validatedData.workspaceId) {
-      const membership = await prisma.workspaceMember.findFirst({
-        where: {
-          workspaceId: validatedData.workspaceId,
-          userId: session.user.id,
-        },
-      })
-
-      if (!membership) {
-        return NextResponse.json(
-          { error: 'Workspace not found or access denied' },
-          { status: 404 }
-        )
-      }
-    }
-
-    const note = await prisma.note.create({
+    const newNote = await prisma.note.create({
       data: {
         ...validatedData,
-        authorId: session.user.id,
+        authorId: demoUserId,
       },
       include: {
         author: {
           select: {
             name: true,
             image: true,
-          },
+          }
         },
         project: {
           select: {
+            id: true,
             name: true,
             slug: true,
-          },
+          }
         },
       },
     })
 
-    return NextResponse.json({ note }, { status: 201 })
+    return NextResponse.json({ note: newNote }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

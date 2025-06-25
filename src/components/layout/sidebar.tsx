@@ -35,7 +35,7 @@ const navigationItems = [
   },
   {
     title: 'Projeler',
-    href: '/dashboard/projects',
+    href: '/dashboard/projeler',
     icon: FolderOpen,
   },
   {
@@ -73,7 +73,7 @@ const navigationItems = [
 const quickActions = [
   {
     title: 'Yeni Proje',
-    href: '/dashboard/projects/new',
+    href: '/dashboard/projeler/yeni',
     icon: FolderOpen,
   },
   {
@@ -204,25 +204,17 @@ export function Sidebar({ className }: SidebarProps) {
           </div>
         </Link>
         
-        {!isCollapsed && user && (
+        {!isCollapsed && (
           <div className="mt-4 p-3 bg-muted rounded-md">
             <div className="flex items-center gap-3">
-              {user.image ? (
-                <img
-                  src={user.image}
-                  alt={user.name || 'User'}
-                  className="w-8 h-8 rounded-full"
-                />
-              ) : (
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                  <span className="text-primary-foreground text-sm font-semibold">
-                    {user.name?.charAt(0) || 'U'}
-                  </span>
-                </div>
-              )}
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                <span className="text-primary-foreground text-sm font-semibold">
+                  D
+                </span>
+              </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                <p className="text-sm font-medium truncate">Demo User</p>
+                <p className="text-xs text-muted-foreground truncate">demo@boardly.app</p>
               </div>
             </div>
           </div>

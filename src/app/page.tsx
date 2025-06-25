@@ -10,11 +10,11 @@ export default function Home() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-primary">Boardly</h1>
           <div className="flex gap-2">
-            <Link href="/auth/signin">
-              <Button variant="ghost">Giriş Yap</Button>
+            <Link href="/dashboard">
+              <Button variant="ghost">Dashboard</Button>
             </Link>
-            <Link href="/auth/signin">
-              <Button>Üye Ol</Button>
+            <Link href="/dashboard">
+              <Button>Başla</Button>
             </Link>
           </div>
         </div>

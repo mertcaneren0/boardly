@@ -81,7 +81,7 @@ export function NoteCard({ note, onEdit, onDelete, onPin, onArchive }: NoteCardP
     : note.content
 
   return (
-    <Card className={`relative border-l-4 ${priorityColors[note.priority]} hover:shadow-md transition-shadow`}>
+    <Card className={`relative border-l-4 card-neon ${priorityColors[note.priority]} hover:shadow-md transition-shadow`}>
       {note.isPinned && (
         <Pin className="absolute top-2 right-2 h-4 w-4 text-amber-500 fill-current" />
       )}

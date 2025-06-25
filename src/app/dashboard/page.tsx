@@ -1,11 +1,14 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { NotesList } from '@/components/notes'
 import { useNotes, useCreateNote, useUpdateNote, useDeleteNote, usePinNote, useArchiveNote } from '@/hooks/notes/use-notes'
+import { useDashboardStats } from '@/hooks/use-dashboard'
+import { useProjects } from '@/hooks/use-projects'
 import { CreateNoteData, UpdateNoteData } from '@/types'
 import {
   FolderOpen,
@@ -19,104 +22,11 @@ import {
   Users,
   BarChart3,
   Activity,
+  Folder,
+  Check,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
-
-// Mock dashboard stats
-const stats = [
-  {
-    title: 'Aktif Projeler',
-    value: '8',
-    change: '+2',
-    changeType: 'positive' as const,
-    icon: FolderOpen,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100',
-  },
-  {
-    title: 'Devam Eden Görevler',
-    value: '23',
-    change: '+5',
-    changeType: 'positive' as const,
-    icon: CheckSquare,
-    color: 'text-green-600',
-    bgColor: 'bg-green-100',
-  },
-  {
-    title: 'Bu Ay Kazanç',
-    value: '₺24,580',
-    change: '+12%',
-    changeType: 'positive' as const,
-    icon: DollarSign,
-    color: 'text-emerald-600',
-    bgColor: 'bg-emerald-100',
-  },
-  {
-    title: 'Bekleyen Ödemeler',
-    value: '5',
-    change: '-2',
-    changeType: 'negative' as const,
-    icon: CreditCard,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-100',
-  },
-]
-
-// Mock recent activities
-const recentActivities = [
-  {
-    id: 1,
-    type: 'project',
-    title: 'Website Redesign projesi oluşturuldu',
-    time: '2 saat önce',
-    icon: FolderOpen,
-  },
-  {
-    id: 2,
-    type: 'task',
-    title: 'UI Mockup görevi tamamlandı',
-    time: '4 saat önce',
-    icon: CheckSquare,
-  },
-  {
-    id: 3,
-    type: 'payment',
-    title: 'ABC Şirketi ödemesi alındı',
-    time: '1 gün önce',
-    icon: CreditCard,
-  },
-  {
-    id: 4,
-    type: 'team',
-    title: 'Yeni ekip üyesi eklendi',
-    time: '2 gün önce',
-    icon: Users,
-  },
-]
-
-// Mock upcoming deadlines
-const upcomingDeadlines = [
-  {
-    id: 1,
-    title: 'Logo Tasarım Teslimi',
-    project: 'ABC Şirketi',
-    date: '2024-01-15',
-    priority: 'high' as const,
-  },
-  {
-    id: 2,
-    title: 'Website Mockup Review',
-    project: 'XYZ Startup',
-    date: '2024-01-18',
-    priority: 'medium' as const,
-  },
-  {
-    id: 3,
-    title: 'Son Ödeme Hatırlatması',
-    project: 'DEF Ajans',
-    date: '2024-01-20',
-    priority: 'low' as const,
-  },
-]
 
 const priorityColors = {
   high: 'bg-red-100 text-red-800',
@@ -124,9 +34,23 @@ const priorityColors = {
   low: 'bg-green-100 text-green-800',
 }
 
+const iconMap = {
+  FolderOpen,
+  CheckSquare,
+  CreditCard,
+  Users,
+  Activity,
+}
+
 export default function DashboardPage() {
+  const router = useRouter()
+  
+  // API hooks
+  const { data: dashboardStats, isLoading: statsLoading, error: statsError } = useDashboardStats()
+  const { data: projects = [] } = useProjects()
+  
   // Notes hooks
-  const { data: notes = [], isLoading } = useNotes()
+  const { data: notes = [], isLoading: notesLoading } = useNotes()
   const createNoteMutation = useCreateNote()
   const updateNoteMutation = useUpdateNote()
   const deleteNoteMutation = useDeleteNote()
@@ -159,155 +83,297 @@ export default function DashboardPage() {
     }
   }
 
+  // Loading state
+  if (statsLoading) {
+    return (
+      <DashboardLayout title="Dashboard" subtitle="Hoş geldiniz">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  // Error state
+  if (statsError) {
+    return (
+      <DashboardLayout title="Dashboard" subtitle="Hata oluştu">
+        <div className="text-center py-12">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600">Dashboard verileri yüklenirken hata oluştu</p>
+          <Button 
+            variant="outline" 
+            onClick={() => window.location.reload()}
+            className="mt-4"
+          >
+            Yeniden Dene
+          </Button>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  const stats = dashboardStats || {
+    projects: { total: 0, active: 0, completed: 0, planning: 0 },
+    tasks: { total: 0, completed: 0, inProgress: 0, todo: 0, today: 0 },
+    budget: { total: 0, used: 0, percentage: 0 },
+    upcomingDeadlines: [],
+    recentActivities: [],
+    todaysTasks: [],
+  }
+
+  // Generate dashboard stats cards
+  const statsCards = [
+    {
+      title: 'Aktif Projeler',
+      value: stats.projects.active.toString(),
+      change: `${stats.projects.total} toplam`,
+      changeType: 'neutral' as const,
+      icon: FolderOpen,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100',
+    },
+    {
+      title: 'Devam Eden Görevler',
+      value: stats.tasks.inProgress.toString(),
+      change: `${stats.tasks.completed} tamamlandı`,
+      changeType: 'positive' as const,
+      icon: CheckSquare,
+      color: 'text-green-600',
+      bgColor: 'bg-green-100',
+    },
+    {
+      title: 'Toplam Bütçe',
+      value: `₺${stats.budget.total.toLocaleString()}`,
+      change: `%${stats.budget.percentage} kullanıldı`,
+      changeType: stats.budget.percentage > 80 ? 'negative' as const : 'positive' as const,
+      icon: DollarSign,
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-100',
+    },
+    {
+      title: 'Bugünkü Görevler',
+      value: stats.tasks.today.toString(),
+      change: `${stats.tasks.todo} bekliyor`,
+      changeType: 'neutral' as const,
+      icon: Calendar,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-100',
+    },
+  ]
+
   return (
-    <DashboardLayout title="Dashboard" subtitle="Projelerin ve görevlerin genel bakışı">
+    <DashboardLayout title="Dashboard" subtitle="Hoş geldiniz">
       <div className="space-y-6">
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
-            <Card key={stat.title}>
+          {statsCards.map((stat, index) => (
+            <Card key={index} className="card-neon">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                <div className={`p-2 rounded-md ${stat.bgColor}`}>
+                <CardTitle className="text-sm font-medium">
+                  {stat.title}
+                </CardTitle>
+                <div className={`w-8 h-8 rounded-md flex items-center justify-center ${stat.bgColor}`}>
                   <stat.icon className={`h-4 w-4 ${stat.color}`} />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground">
-                  <span className={`${
-                    stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {stat.change}
-                  </span>
-                  {' '}geçen aya göre
+                <p className={`text-xs ${
+                  stat.changeType === 'positive' ? 'text-green-600' : 
+                  stat.changeType === 'negative' ? 'text-red-600' : 
+                  'text-muted-foreground'
+                }`}>
+                  {stat.change}
                 </p>
               </CardContent>
             </Card>
           ))}
         </div>
 
+        {/* Main Content Grid */}
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Recent Activities */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Son Aktiviteler
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3">
-                  <div className="p-2 bg-muted rounded-md">
-                    <activity.icon className="h-3 w-3" />
+          {/* Today's Tasks */}
+          <div className="lg:col-span-2">
+            <Card className="card-neon-glow">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl">Bugünkü Görevler</CardTitle>
+                    <CardDescription>
+                      {new Date().toLocaleDateString('tr-TR', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </CardDescription>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium leading-tight">
-                      {activity.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {activity.time}
-                    </p>
-                  </div>
+                  <Button 
+                    size="sm" 
+                    onClick={() => router.push('/dashboard/tasks')}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Görev Ekle
+                  </Button>
                 </div>
-              ))}
-              <Button variant="outline" size="sm" className="w-full mt-4">
-                Tümünü Gör
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Upcoming Deadlines */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Yaklaşan Son Tarihler
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {upcomingDeadlines.map((deadline) => (
-                <div key={deadline.id} className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium leading-tight">
-                      {deadline.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {deadline.project}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(deadline.date).toLocaleDateString('tr-TR')}
-                    </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {stats.todaysTasks.length > 0 ? (
+                  stats.todaysTasks.map((project, projectIndex) => (
+                    <div key={projectIndex} className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-sm">{project.projectName}</h4>
+                        <span className="text-xs text-muted-foreground">
+                          {project.tasks.filter(t => t.completed).length}/{project.tasks.length} tamamlandı
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {project.tasks.map((task) => (
+                          <div 
+                            key={task.id}
+                            className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                checked={task.completed}
+                                className="rounded border-gray-300"
+                                readOnly
+                              />
+                              <span className={`text-sm ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                {task.title}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2 ml-auto">
+                              <Badge 
+                                variant="secondary" 
+                                className={`text-xs ${priorityColors[task.priority as keyof typeof priorityColors]}`}
+                              >
+                                {task.priority === 'high' ? 'Yüksek' : 
+                                 task.priority === 'medium' ? 'Orta' : 'Düşük'}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">{task.time}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                    <p className="text-muted-foreground">Bugün için planlanmış görev bulunmuyor</p>
                   </div>
-                  <Badge variant="secondary" className={priorityColors[deadline.priority]}>
-                    {deadline.priority === 'high' && 'Yüksek'}
-                    {deadline.priority === 'medium' && 'Orta'}
-                    {deadline.priority === 'low' && 'Düşük'}
-                  </Badge>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" className="w-full mt-4">
-                <Calendar className="h-4 w-4 mr-2" />
-                Takvimi Aç
-              </Button>
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Quick Actions */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Hızlı İşlemler
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button className="w-full" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Yeni Proje
-              </Button>
-              <Button variant="outline" className="w-full" size="sm">
-                <CheckSquare className="h-4 w-4 mr-2" />
-                Görev Ekle
-              </Button>
-              <Button variant="outline" className="w-full" size="sm">
-                <CreditCard className="h-4 w-4 mr-2" />
-                Ödeme Kaydet
-              </Button>
-              <Button variant="outline" className="w-full" size="sm">
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Rapor Oluştur
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Recent Activities */}
+            <Card className="card-neon">
+              <CardHeader>
+                <CardTitle className="text-lg">Son Aktiviteler</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {stats.recentActivities.length > 0 ? (
+                  stats.recentActivities.map((activity) => {
+                    const IconComponent = iconMap[activity.icon as keyof typeof iconMap] || Activity
+                    return (
+                      <div key={activity.id} className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+                          <IconComponent className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {activity.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {activity.time}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Henüz aktivite bulunmuyor
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card className="card-neon">
+              <CardHeader>
+                <CardTitle className="text-lg">Hızlı İşlemler</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => router.push('/dashboard/projeler/yeni')}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Yeni Proje
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => router.push('/dashboard/tasks/new')}
+                >
+                  <CheckSquare className="h-4 w-4 mr-2" />
+                  Görev Ekle
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => router.push('/dashboard/notes/new')}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Not Ekle
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Recent Notes */}
-        <Card>
+        {/* Notes Section */}
+        <Card className="card-neon-glow">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Son Notlar</CardTitle>
-              <Button variant="outline" size="sm">
+              <div>
+                <CardTitle className="text-xl">Son Notlar</CardTitle>
+                <CardDescription>
+                  Yakın zamanda eklenen notlarınız
+                </CardDescription>
+              </div>
+              <Button 
+                size="sm" 
+                onClick={() => router.push('/dashboard/notes')}
+              >
                 Tümünü Gör
               </Button>
             </div>
-            <CardDescription>
-              Dashboard notlarınız - proje notları projeler sayfasında görünür
-            </CardDescription>
           </CardHeader>
           <CardContent>
-            <NotesList
-              notes={notes.slice(0, 6)} // Show only first 6 notes
-              title=""
-              showCreateButton={true}
-              onCreateNote={handleCreateNote}
-              onUpdateNote={handleUpdateNote}
-              onDeleteNote={handleDeleteNote}
-              onPinNote={handlePinNote}
-              onArchiveNote={handleArchiveNote}
-              isLoading={isLoading}
-            />
+            {notesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : (
+              <NotesList
+                notes={notes.slice(0, 3)} // Show only first 3 notes
+                onCreateNote={handleCreateNote}
+                onUpdateNote={handleUpdateNote}
+                onDeleteNote={handleDeleteNote}
+                onPinNote={handlePinNote}
+                onArchiveNote={handleArchiveNote}
+                isLoading={notesLoading}
+              />
+            )}
           </CardContent>
         </Card>
       </div>
