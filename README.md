@@ -1,36 +1,140 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Creative Agency CRM
 
-## Getting Started
+Kreatif ajanslar için kapsamlı proje yönetim sistemi. Bu uygulama, projeleri, görevleri, finansalları, müşteri ilişkilerini ve teklif/sözleşme süreçlerini tek bir platform üzerinden yönetmenizi sağlar.
 
-First, run the development server:
+## Özellikler
 
+### 🔐 Kullanıcı Yönetimi ve Yetkilendirme
+- **ADMIN**: Tüm modüllere tam erişim
+- **TEAM_MEMBER**: Sadece atanmış projeler ve görevler
+
+### 📊 Dashboard
+- Bugünkü görevler
+- Yaklaşan teslim tarihleri
+- Son aktiviteler
+- Onay bekleyenler (Admin için)
+
+### 📁 Proje Yönetimi
+- Proje oluşturma ve düzenleme
+- Kanban board ile görev yönetimi
+- Dosya yükleme ve not alma
+- Zaman takibi
+
+### ✅ Görev Yönetimi
+- Sürükle-bırak Kanban panosu
+- Alt görevler
+- Yorumlar ve zaman takibi
+- Öncelik seviyeleri
+
+### 💰 Finans Modülü (Admin)
+- Bakiye takibi
+- Gelir-gider yönetimi
+- Çoklu para birimi desteği
+- Cüzdan yönetimi
+
+### 👥 Müşteri Yönetimi (Admin)
+- Müşteri bilgileri
+- Proje geçmişi
+- İletişim bilgileri
+
+### 📄 Teklif ve Sözleşme (Admin)
+- Teklif oluşturma
+- PDF çıktısı
+- Durum takibi
+
+## Teknoloji Stack
+
+- **Frontend**: Next.js 14, React, TypeScript
+- **Styling**: Tailwind CSS
+- **Backend**: Next.js API Routes
+- **Database**: PostgreSQL
+- **ORM**: Prisma
+- **Authentication**: NextAuth.js
+- **UI Components**: Headless UI, Heroicons
+
+## Kurulum
+
+1. **Projeyi klonlayın**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd creative-agency-crm
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Bağımlılıkları yükleyin**
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. **Environment değişkenlerini ayarlayın**
+```bash
+cp .env.example .env
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`.env` dosyasını düzenleyin:
+```env
+DATABASE_URL="postgresql://username:password@localhost:5432/creative_agency_crm"
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-secret-key-here"
+```
 
-## Learn More
+4. **Veritabanını kurun**
+```bash
+npx prisma migrate dev
+npx prisma generate
+```
 
-To learn more about Next.js, take a look at the following resources:
+5. **Geliştirme sunucusunu başlatın**
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+6. **Tarayıcıda açın**
+```
+http://localhost:3000
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Veritabanı Şeması
 
-## Deploy on Vercel
+Sistem aşağıdaki ana modelleri içerir:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **User**: Kullanıcılar ve rolleri
+- **Project**: Projeler ve durumları
+- **Task**: Görevler ve Kanban sütunları
+- **Client**: Müşteri bilgileri
+- **Quote/Invoice**: Teklif ve fatura yönetimi
+- **Transaction**: Finansal işlemler
+- **TimeEntry**: Zaman takibi
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/signin` - Giriş
+- `POST /api/auth/signout` - Çıkış
+
+### Projects
+- `GET /api/projects` - Projeleri listele
+- `POST /api/projects` - Yeni proje oluştur
+- `GET /api/projects/[id]` - Proje detayı
+- `PUT /api/projects/[id]` - Proje güncelle
+
+### Tasks
+- `GET /api/tasks` - Görevleri listele
+- `POST /api/tasks` - Yeni görev oluştur
+- `PUT /api/tasks/[id]` - Görev güncelle
+- `DELETE /api/tasks/[id]` - Görev sil
+
+## Katkıda Bulunma
+
+1. Fork yapın
+2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
+3. Commit yapın (`git commit -m 'Add amazing feature'`)
+4. Push yapın (`git push origin feature/amazing-feature`)
+5. Pull Request oluşturun
+
+## Lisans
+
+Bu proje MIT lisansı altında lisanslanmıştır.
+
+## İletişim
+
+Sorularınız için issue açabilir veya iletişime geçebilirsiniz.
